@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F4E78">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<title>Stock Tracker — Admin Dashboard</title>
+<style>
+  :root {
+    --primary: #1F4E78; --primary-dark: #163958; --accent: #2E86AB;
+    --success: #4CAF50; --warning: #FFC107; --danger: #F44336;
+    --bg: #F5F7FA; --card: #FFFFFF; --text: #1A202C; --muted: #718096;
+    --border: #E2E8F0; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08); --radius: 12px; --radius-sm: 8px;
+    --essential: #4CAF50; --donation: #FF9800; --ncd: #F44336;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Tahoma', Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; min-height: 100vh;
+  }
+  .header {
+    background: linear-gradient(135deg, #1F4E78 0%, #2E86AB 100%); color: white;
+    padding: 14px 16px; position: sticky; top: 0; z-index: 10; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .header .badge { font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 8px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .header-actions button {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    font-family: inherit; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--success); }
+  .status-dot.offline { background: var(--danger); }
+  .update-banner {
+    background: var(--accent); color: white; padding: 10px 16px;
+    display: none; justify-content: space-between; align-items: center;
+  }
+  .update-banner.show { display: flex; }
+  .update-banner button {
+    background: white; color: var(--accent); border: none; padding: 6px 12px;
+    border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .tabs {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    display: flex; position: sticky; top: 50px; z-index: 9; overflow-x: auto;
+  }
+  .tabs button {
+    flex: 1; min-width: max-content; padding: 14px 12px; border: none; background: transparent;
+    font-size: 14px; color: var(--muted); cursor: pointer;
+    border-bottom: 3px solid transparent; font-family: inherit; white-space: nowrap;
+  }
+  .tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 14px 0; font-size: 16px; font-weight: 600; }
+  .card h3 { margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .stat {
+    background: var(--card); padding: 14px; border-radius: var(--radius-sm);
+    box-shadow: var(--shadow); text-align: center; border-top: 3px solid var(--primary);
+  }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .stat .value { font-size: 26px; font-weight: 700; color: var(--primary); margin-top: 4px; line-height: 1.1; }
+  .stat.danger { border-top-color: var(--danger); }
+  .stat.danger .value { color: var(--danger); }
+  .stat.warning { border-top-color: var(--warning); }
+  .stat.warning .value { color: #E65100; }
+  .stat.success { border-top-color: var(--success); }
+  .stat.success .value { color: var(--success); }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 14px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; gap: 6px;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: white;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--primary); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 120px; }
+
+  /* Pie / Donut charts */
+  .pie-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; justify-content: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+  .legend-color { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+
+  /* Horizontal bar charts */
+  .hbar-chart { display: flex; flex-direction: column; gap: 8px; }
+  .hbar-row { display: grid; grid-template-columns: 160px 1fr; align-items: center; gap: 10px; font-size: 13px; }
+  .hbar-label { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hbar-track { position: relative; background: var(--bg); height: 22px; border-radius: 4px; overflow: hidden; }
+  .hbar-fill { position: absolute; top:0; left:0; height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.5s; }
+  .hbar-value { position: absolute; top:0; left:0; right: 0; padding: 0 8px; line-height: 22px; font-weight: 600; font-size: 12px; color: var(--text); text-shadow: 0 0 3px white; text-align: right; }
+
+  /* Mini bars (for compact lists) */
+  .mini-bars { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+  .mini-bars .row-mini { display: grid; grid-template-columns: 1fr 90px; gap: 8px; align-items: center; }
+  .mini-bars .row-mini .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .mini-bars .row-mini .bar { background: var(--bg); height: 14px; border-radius: 3px; position: relative; }
+  .mini-bars .row-mini .bar > div { background: var(--primary); height: 100%; border-radius: 3px; }
+  .mini-bars .row-mini .bar > span { position: absolute; right: 4px; top: 0; line-height: 14px; font-size: 11px; font-weight: 600; }
+
+  /* Comparison table */
+  .compare-grid {
+    display: grid; grid-template-columns: 1fr 80px 80px 80px;
+    align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    font-size: 13px; gap: 8px;
+  }
+  .compare-grid.header { font-weight: 700; background: var(--bg); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .compare-grid .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .compare-grid .diff-pos { color: var(--success); }
+  .compare-grid .diff-neg { color: var(--danger); }
+  .compare-grid .diff-zero { color: var(--muted); }
+
+  /* Health indicator bar */
+  .health-bar {
+    display: flex; height: 32px; border-radius: 6px; overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 8px;
+  }
+  .health-seg { display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; min-width: 0; transition: flex 0.5s; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--text); color: white; padding: 12px 20px;
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+    z-index: 100; transition: transform 0.3s; font-size: 14px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .empty { text-align: center; padding: 32px 16px; color: var(--muted); font-size: 14px; }
+  .last-updated { font-size: 12px; color: var(--muted); text-align: right; margin-top: 8px; }
+
+  @media (max-width: 600px) {
+    .stat .value { font-size: 22px; }
+    .hbar-row { grid-template-columns: 110px 1fr; }
+    .compare-grid { grid-template-columns: 1fr 60px 60px 60px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📈 Admin Dashboard <span class="badge" id="versionBadge">v1.0.0</span></h1>
+  <div class="header-actions">
+    <button onclick="refreshAll()" title="Refresh"><span id="refreshIcon">🔄</span></button>
+    <span class="status-dot" id="statusDot"></span>
+  </div>
+</div>
+
+<div class="update-banner" id="updateBanner">
+  <span>🔄 A new version is available</span>
+  <button onclick="applyUpdate()">Update now</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overall" onclick="switchTab('overall')">Overall</button>
+  <button class="tab-btn" data-tab="facility" onclick="switchTab('facility')">By Facility</button>
+  <button class="tab-btn" data-tab="compare" onclick="switchTab('compare')">Compare</button>
+  <button class="tab-btn" data-tab="rankings" onclick="switchTab('rankings')">Rankings</button>
+  <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+</div>
+
+<div class="container">
+
+  <!-- OVERALL -->
+  <div class="screen active" id="screen-overall">
+    <div class="stats" id="overallStats"></div>
+
+    <div class="card">
+      <h2>🏥 Stock Health — All Facilities</h2>
+      <div class="health-bar" id="healthBar"></div>
+      <div class="chart-legend" id="healthLegend"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>📦 Stock by Category</h2>
+        <div class="pie-wrap" id="categoryPie"></div>
+      </div>
+      <div class="card">
+        <h2>⚖️ Stock Distribution by Facility</h2>
+        <div id="facilityBars"></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>🏆 Top 10 Best-Stocked Drugs</h2>
+        <div id="topDrugs"></div>
+      </div>
+      <div class="card">
+        <h2>🆘 Top 10 Most Critical Drugs</h2>
+        <div id="worstDrugs"></div>
+      </div>
+    </div>
+    <div class="last-updated" id="overallUpdated"></div>
+  </div>
+
+  <!-- BY FACILITY -->
+  <div class="screen" id="screen-facility">
+    <div class="card">
+      <h2>🏥 Single Facility Detail</h2>
+      <div class="row">
+        <div class="field" style="flex: 2; min-width: 200px;">
+          <label>Medical Point</label>
+          <select id="facilityPick" onchange="renderFacility()"></select>
+        </div>
+      </div>
+    </div>
+
+    <div id="facilityContent"></div>
+  </div>
+
+  <!-- COMPARE -->
+  <div class="screen" id="screen-compare">
+    <div class="card">
+      <h2>↔️ Compare Two Facilities</h2>
+      <div class="row">
+        <div class="field" style="min-width: 180px;">
+          <label>Facility A</label>
+          <select id="cmpA"></select>
+        </div>
+        <div class="field" style="min-width: 180px;">
+          <label>Facility B</label>
+          <select id="cmpB"></select>
+        </div>
+        <div class="field" style="max-width: 110px;">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="renderCompare()">Compare</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="compareContent"></div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div class="screen" id="screen-rankings">
+    <div class="grid-2">
+      <div class="card">
+        <h2>🏥 Facilities Ranked by Total Stock</h2>
+        <div id="rankFacilityStock"></div>
+      </div>
+      <div class="card">
+        <h2>⚠️ Facilities Ranked by Low-Stock Count</h2>
+        <div id="rankFacilityLow"></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>💊 Drugs Ranked by Total Stock (All Points)</h2>
+        <div id="rankDrugStock"></div>
+      </div>
+      <div class="card">
+        <h2>🚨 Drugs Ranked by Stock-out Count</h2>
+        <div id="rankDrugZero"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <div class="card">
+      <h2>🔌 Connection</h2>
+      <div class="field">
+        <label>API URL (Apps Script Web App URL)</label>
+        <input type="text" id="settingUrl">
+      </div>
+      <div class="row">
+        <button class="btn btn-secondary" onclick="testConnection()">Test</button>
+        <button class="btn btn-primary" onclick="saveApiUrl()">Save URL</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔄 Auto-Refresh</h2>
+      <div class="field">
+        <label>Auto-refresh interval (minutes)</label>
+        <select id="refreshInterval">
+          <option value="0">Off</option>
+          <option value="1">Every 1 minute</option>
+          <option value="5" selected>Every 5 minutes</option>
+          <option value="15">Every 15 minutes</option>
+          <option value="30">Every 30 minutes</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="saveRefreshInterval()">Save</button>
+    </div>
+
+    <div class="card">
+      <h2>🔄 App Update</h2>
+      <button class="btn btn-secondary" onclick="checkForUpdate(true)">Check for app update</button>
+    </div>
+
+    <div class="card">
+      <h2>ℹ️ About</h2>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">App version: <strong id="aboutVersion"></strong></p>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">Backend version: <strong id="aboutBackend">—</strong></p>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">Last data load: <strong id="aboutLoaded">never</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const APP_VERSION = '1.0.0';
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbylvpiNmufRRLNDNrQmRUHkYJBhYr9g4IAhrKSOlY0xCfXH1VC3xoefUZF1PMZZARFA/exec';
+const LOW_THRESHOLD = 10;
+
+const state = {
+  apiUrl: '', drugs: [], points: [],
+  stockHeaders: [], stockRows: [],
+  refreshTimer: null, refreshMinutes: 5,
+};
+
+const Storage = {
+  KEYS: { API_URL: 'adm_apiUrl', REFRESH_MIN: 'adm_refreshMin' },
+  get(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch(_) { return f; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(_) { return false; } },
+};
+
+async function api(action, params) {
+  const url = new URL(state.apiUrl);
+  url.searchParams.set('action', action);
+  if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url.toString(), { method: 'GET', redirect: 'follow' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+function $(id) { return document.getElementById(id); }
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (kind ? ' ' + kind : '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setOnlineStatus(on) { $('statusDot').className = on ? 'status-dot' : 'status-dot offline'; }
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + name));
+  if (name === 'facility') renderFacility();
+  if (name === 'rankings') renderRankings();
+}
+
+// =========================================================================
+// CHART HELPERS — SVG-based, no external libraries
+// =========================================================================
+
+const FACILITY_COLORS = ['#1F4E78','#2E86AB','#A23B72','#F18F01','#C73E1D','#3B7B7B','#7E4E9C','#2E7D32','#1565C0','#EF6C00','#AD1457','#37474F','#4527A0','#00838F','#5D4037'];
+const CAT_COLORS = { 'Essential': '#4CAF50', 'Donation': '#FF9800', 'NCD': '#F44336' };
+
+function pieChart(items, opts) {
+  opts = opts || {};
+  const total = items.reduce((s, i) => s + i.value, 0);
+  if (total === 0) return '<div class="empty">No data</div>';
+  const size = opts.size || 220;
+  const r = size / 2 - 16;
+  const cx = size / 2, cy = size / 2;
+  const innerR = opts.donut ? r * 0.6 : 0;
+  let angle = -Math.PI / 2;
+  let svg = `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`;
+  items.forEach(item => {
+    if (item.value === 0) return;
+    const a = (item.value / total) * Math.PI * 2;
+    const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(angle + a), y2 = cy + r * Math.sin(angle + a);
+    const large = a > Math.PI ? 1 : 0;
+    let path;
+    if (innerR > 0) {
+      const ix2 = cx + innerR * Math.cos(angle + a), iy2 = cy + innerR * Math.sin(angle + a);
+      const ix1 = cx + innerR * Math.cos(angle), iy1 = cy + innerR * Math.sin(angle);
+      path = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z`;
+    } else {
+      path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+    }
+    svg += `<path d="${path}" fill="${item.color}" stroke="white" stroke-width="2"/>`;
+    angle += a;
+  });
+  if (opts.centerValue !== undefined) {
+    svg += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="22" font-weight="700" fill="#1A202C" font-family="inherit">${opts.centerValue}</text>`;
+    if (opts.centerLabel) svg += `<text x="${cx}" y="${cy + 15}" text-anchor="middle" font-size="11" fill="#718096" font-family="inherit">${opts.centerLabel}</text>`;
+  }
+  svg += '</svg>';
+  let legend = '<div class="chart-legend">';
+  items.forEach(item => {
+    const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+    legend += `<div class="legend-item"><span class="legend-color" style="background:${item.color}"></span>${escapeHTML(item.label)}: <strong>${item.value.toLocaleString()}</strong> (${pct}%)</div>`;
+  });
+  legend += '</div>';
+  return svg + legend;
+}
+
+function hBarChart(items, opts) {
+  opts = opts || {};
+  if (items.length === 0) return '<div class="empty">No data</div>';
+  const max = Math.max(...items.map(i => i.value), 1);
+  let html = '<div class="hbar-chart">';
+  items.forEach((item, i) => {
+    const pct = max > 0 ? (item.value / max) * 100 : 0;
+    const color = item.color || FACILITY_COLORS[i % FACILITY_COLORS.length];
+    html += `<div class="hbar-row">
+      <div class="hbar-label" title="${escapeHTML(item.label)}">${escapeHTML(item.label)}</div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${pct}%;background:${color};"></div>
+        <div class="hbar-value">${item.value.toLocaleString()}</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function miniBars(items, opts) {
+  opts = opts || {};
+  if (items.length === 0) return '<div class="empty">No data</div>';
+  const max = Math.max(...items.map(i => Math.abs(i.value)), 1);
+  let html = '<div class="mini-bars">';
+  items.forEach(item => {
+    const pct = max > 0 ? (Math.abs(item.value) / max) * 100 : 0;
+    const color = item.color || (item.value < 0 ? 'var(--danger)' : (item.value === 0 ? 'var(--danger)' : (item.value < 10 ? 'var(--warning)' : 'var(--primary)')));
+    html += `<div class="row-mini">
+      <div class="name" title="${escapeHTML(item.label)}">${escapeHTML(item.label)}</div>
+      <div class="bar"><div style="width:${pct}%;background:${color};"></div><span>${item.value.toLocaleString()}</span></div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function healthBar(segments) {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  if (total === 0) return { bar: '<div class="empty">No data</div>', legend: '' };
+  let bar = '';
+  segments.forEach(seg => {
+    if (seg.value === 0) return;
+    const pct = (seg.value / total) * 100;
+    bar += `<div class="health-seg" style="flex:${seg.value};background:${seg.color};" title="${seg.label}: ${seg.value}">${pct > 6 ? seg.value : ''}</div>`;
+  });
+  let legend = '<div class="chart-legend">';
+  segments.forEach(seg => {
+    const pct = total > 0 ? ((seg.value / total) * 100).toFixed(1) : 0;
+    legend += `<div class="legend-item"><span class="legend-color" style="background:${seg.color}"></span>${escapeHTML(seg.label)}: <strong>${seg.value}</strong> (${pct}%)</div>`;
+  });
+  legend += '</div>';
+  return { bar, legend };
+}
+
+// =========================================================================
+// DATA ANALYSIS
+// =========================================================================
+
+function classifyQty(q) {
+  const n = Number(q);
+  if (isNaN(n)) return 'na';
+  if (n < 0) return 'neg';
+  if (n === 0) return 'zero';
+  if (n < LOW_THRESHOLD) return 'low';
+  return 'ok';
+}
+
+function analyzeStock() {
+  // Returns aggregated metrics from state.stockRows
+  const { stockHeaders, stockRows } = state;
+  // headers: ['Drug', 'Category', point1, point2, ...]
+  const pointNames = stockHeaders.slice(2);
+  const result = {
+    totalUnits: 0,
+    healthCounts: { ok: 0, low: 0, zero: 0, neg: 0 },
+    byCategory: { Essential: 0, Donation: 0, NCD: 0 },
+    byCategoryCount: { Essential: 0, Donation: 0, NCD: 0 },
+    byFacility: {},  // pointName -> total units
+    byFacilityLow: {}, // pointName -> low-stock count
+    byFacilityZero: {}, // pointName -> zero-stock count
+    perDrug: [], // [{name, cat, total, perPoint:[{point, qty}]}]
+    perDrugZeroCount: {}, // drug -> count of points where it's 0
+  };
+  pointNames.forEach(p => {
+    result.byFacility[p] = 0;
+    result.byFacilityLow[p] = 0;
+    result.byFacilityZero[p] = 0;
+  });
+  stockRows.forEach(row => {
+    if (!row[0]) return;
+    const drug = row[0], cat = row[1] || '';
+    const perPoint = [];
+    let drugTotal = 0;
+    let drugZeroCount = 0;
+    for (let i = 2; i < row.length; i++) {
+      const pn = pointNames[i - 2];
+      const n = Number(row[i]);
+      if (isNaN(n)) { perPoint.push({ point: pn, qty: 0 }); continue; }
+      const cls = classifyQty(n);
+      result.healthCounts[cls === 'na' ? 'ok' : cls]++;
+      result.totalUnits += Math.max(0, n);
+      if (cat && result.byCategory[cat] !== undefined) {
+        result.byCategory[cat] += Math.max(0, n);
+      }
+      result.byFacility[pn] = (result.byFacility[pn] || 0) + Math.max(0, n);
+      if (cls === 'low') result.byFacilityLow[pn]++;
+      if (cls === 'zero' || cls === 'neg') result.byFacilityZero[pn]++;
+      perPoint.push({ point: pn, qty: n });
+      drugTotal += Math.max(0, n);
+      if (n === 0 || n < 0) drugZeroCount++;
+    }
+    if (cat && result.byCategoryCount[cat] !== undefined) result.byCategoryCount[cat]++;
+    result.perDrug.push({ name: drug, cat, total: drugTotal, perPoint });
+    result.perDrugZeroCount[drug] = drugZeroCount;
+  });
+  return result;
+}
+
+// =========================================================================
+// OVERALL TAB
+// =========================================================================
+
+function renderOverall() {
+  if (!state.stockRows.length) return;
+  const a = analyzeStock();
+  const totalCells = a.healthCounts.ok + a.healthCounts.low + a.healthCounts.zero + a.healthCounts.neg;
+
+  $('overallStats').innerHTML = `
+    <div class="stat"><div class="label">Total Units</div><div class="value">${a.totalUnits.toLocaleString()}</div></div>
+    <div class="stat"><div class="label">Drugs Tracked</div><div class="value">${state.drugs.length}</div></div>
+    <div class="stat"><div class="label">Medical Points</div><div class="value">${state.points.length}</div></div>
+    <div class="stat danger"><div class="label">Out of Stock</div><div class="value">${a.healthCounts.zero}</div></div>
+    <div class="stat warning"><div class="label">Low Stock</div><div class="value">${a.healthCounts.low}</div></div>
+    <div class="stat success"><div class="label">Healthy Cells</div><div class="value">${a.healthCounts.ok}</div></div>
+  `;
+
+  // Health bar
+  const hb = healthBar([
+    { label: 'Healthy', value: a.healthCounts.ok, color: '#4CAF50' },
+    { label: 'Low (<10)', value: a.healthCounts.low, color: '#FFC107' },
+    { label: 'Zero', value: a.healthCounts.zero, color: '#F44336' },
+    { label: 'Negative (error)', value: a.healthCounts.neg, color: '#B71C1C' },
+  ]);
+  $('healthBar').innerHTML = hb.bar;
+  $('healthLegend').innerHTML = hb.legend;
+
+  // Category pie (donut)
+  $('categoryPie').innerHTML = pieChart([
+    { label: 'Essential', value: a.byCategory.Essential, color: CAT_COLORS.Essential },
+    { label: 'Donation', value: a.byCategory.Donation, color: CAT_COLORS.Donation },
+    { label: 'NCD', value: a.byCategory.NCD, color: CAT_COLORS.NCD },
+  ], { donut: true, size: 240, centerValue: a.totalUnits.toLocaleString(), centerLabel: 'units' });
+
+  // Stock distribution by facility
+  const facilitySorted = state.points.map(p => p.name)
+    .map(name => ({ label: name, value: a.byFacility[name] || 0 }))
+    .sort((x, y) => y.value - x.value);
+  $('facilityBars').innerHTML = hBarChart(facilitySorted);
+
+  // Top 10 best stocked drugs (by total across all points)
+  const drugsSortedDesc = [...a.perDrug].sort((x, y) => y.total - x.total).slice(0, 10);
+  $('topDrugs').innerHTML = miniBars(drugsSortedDesc.map(d => ({
+    label: d.name + ' (' + d.cat + ')',
+    value: d.total,
+    color: CAT_COLORS[d.cat] || 'var(--primary)'
+  })));
+
+  // Top 10 worst stocked (most stockouts)
+  const drugsByZero = state.drugs.map(d => ({
+    name: d.name, cat: d.cat,
+    zeros: a.perDrugZeroCount[d.name] || 0
+  })).sort((x, y) => y.zeros - x.zeros).filter(d => d.zeros > 0).slice(0, 10);
+  if (drugsByZero.length === 0) {
+    $('worstDrugs').innerHTML = '<div class="empty">No stockouts — great work!</div>';
+  } else {
+    $('worstDrugs').innerHTML = miniBars(drugsByZero.map(d => ({
+      label: d.name + ' (' + d.cat + ')',
+      value: d.zeros,
+      color: 'var(--danger)'
+    })));
+  }
+
+  $('overallUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+}
+
+// =========================================================================
+// FACILITY TAB
+// =========================================================================
+
+function renderFacility() {
+  const pick = $('facilityPick').value;
+  if (!pick) { $('facilityContent').innerHTML = '<div class="card"><div class="empty">Pick a medical point above</div></div>'; return; }
+  const a = analyzeStock();
+  const pointNames = state.stockHeaders.slice(2);
+  const colIdx = pointNames.indexOf(pick);
+  if (colIdx < 0) { $('facilityContent').innerHTML = '<div class="empty">Point not found</div>'; return; }
+
+  // Compute facility-specific metrics
+  let total = 0, okCount = 0, lowCount = 0, zeroCount = 0, negCount = 0;
+  const byCat = { Essential: 0, Donation: 0, NCD: 0 };
+  const drugList = [];
+  state.stockRows.forEach(row => {
+    if (!row[0]) return;
+    const drug = row[0], cat = row[1] || '';
+    const qty = Number(row[colIdx + 2]) || 0;
+    drugList.push({ name: drug, cat, qty });
+    total += Math.max(0, qty);
+    if (cat && byCat[cat] !== undefined) byCat[cat] += Math.max(0, qty);
+    const cls = classifyQty(qty);
+    if (cls === 'ok') okCount++;
+    else if (cls === 'low') lowCount++;
+    else if (cls === 'zero') zeroCount++;
+    else if (cls === 'neg') negCount++;
+  });
+
+  const hb = healthBar([
+    { label: 'Healthy', value: okCount, color: '#4CAF50' },
+    { label: 'Low', value: lowCount, color: '#FFC107' },
+    { label: 'Zero', value: zeroCount, color: '#F44336' },
+    { label: 'Negative', value: negCount, color: '#B71C1C' },
+  ]);
+
+  const topDrugs = [...drugList].sort((x, y) => y.qty - x.qty).slice(0, 10);
+  const lowDrugs = drugList.filter(d => d.qty <= LOW_THRESHOLD).sort((x, y) => x.qty - y.qty).slice(0, 15);
+
+  let html = `
+    <div class="stats">
+      <div class="stat"><div class="label">Total Units</div><div class="value">${total.toLocaleString()}</div></div>
+      <div class="stat success"><div class="label">Healthy</div><div class="value">${okCount}</div></div>
+      <div class="stat warning"><div class="label">Low (<${LOW_THRESHOLD})</div><div class="value">${lowCount}</div></div>
+      <div class="stat danger"><div class="label">Out of Stock</div><div class="value">${zeroCount}</div></div>
+    </div>
+
+    <div class="card">
+      <h2>🏥 Stock Health</h2>
+      <div class="health-bar">${hb.bar}</div>
+      <div class="chart-legend">${hb.legend.replace(/<div class="chart-legend">|<\\/div>$/g, '')}</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>📦 Stock by Category</h2>
+        <div class="pie-wrap">${pieChart([
+          { label: 'Essential', value: byCat.Essential, color: CAT_COLORS.Essential },
+          { label: 'Donation', value: byCat.Donation, color: CAT_COLORS.Donation },
+          { label: 'NCD', value: byCat.NCD, color: CAT_COLORS.NCD },
+        ], { donut: true, size: 220, centerValue: total.toLocaleString(), centerLabel: 'units' })}</div>
+      </div>
+      <div class="card">
+        <h2>🏆 Top 10 Drugs by Stock</h2>
+        ${miniBars(topDrugs.map(d => ({
+          label: d.name + ' (' + d.cat + ')',
+          value: d.qty,
+          color: CAT_COLORS[d.cat] || 'var(--primary)'
+        })))}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ Low / Zero Stock — Action Items</h2>
+      ${lowDrugs.length === 0 ? '<div class="empty">✓ No items below threshold</div>' :
+        miniBars(lowDrugs.map(d => ({
+          label: d.name + ' (' + d.cat + ')',
+          value: d.qty,
+          color: d.qty <= 0 ? 'var(--danger)' : 'var(--warning)'
+        })))
+      }
+    </div>
+  `;
+  $('facilityContent').innerHTML = html;
+}
+
+// =========================================================================
+// COMPARE TAB
+// =========================================================================
+
+function renderCompare() {
+  const a = $('cmpA').value, b = $('cmpB').value;
+  if (!a || !b) { toast('Pick two facilities', 'error'); return; }
+  if (a === b) { toast('Pick two different facilities', 'error'); return; }
+  const pointNames = state.stockHeaders.slice(2);
+  const idxA = pointNames.indexOf(a), idxB = pointNames.indexOf(b);
+  if (idxA < 0 || idxB < 0) return;
+
+  // Aggregate per facility
+  function agg(idx) {
+    let total = 0, ok = 0, low = 0, zero = 0;
+    const byCat = { Essential: 0, Donation: 0, NCD: 0 };
+    state.stockRows.forEach(row => {
+      if (!row[0]) return;
+      const cat = row[1] || '';
+      const qty = Number(row[idx + 2]) || 0;
+      total += Math.max(0, qty);
+      if (cat && byCat[cat] !== undefined) byCat[cat] += Math.max(0, qty);
+      const cls = classifyQty(qty);
+      if (cls === 'ok') ok++;
+      else if (cls === 'low') low++;
+      else if (cls === 'zero' || cls === 'neg') zero++;
+    });
+    return { total, ok, low, zero, byCat };
+  }
+  const aA = agg(idxA), aB = agg(idxB);
+
+  // Per-drug comparison
+  const drugCompare = [];
+  state.stockRows.forEach(row => {
+    if (!row[0]) return;
+    const qa = Number(row[idxA + 2]) || 0;
+    const qb = Number(row[idxB + 2]) || 0;
+    drugCompare.push({ drug: row[0], cat: row[1] || '', a: qa, b: qb, diff: qa - qb });
+  });
+
+  let html = `
+    <div class="card">
+      <h2>📊 Headline Comparison</h2>
+      <div class="grid-2">
+        <div style="text-align:center;">
+          <h3 style="color:${FACILITY_COLORS[0]};">${escapeHTML(a)}</h3>
+          <div style="font-size:32px;font-weight:700;color:${FACILITY_COLORS[0]};">${aA.total.toLocaleString()}</div>
+          <div style="font-size:12px;color:var(--muted);">total units</div>
+          <div style="margin-top:8px;font-size:13px;">
+            <span style="color:var(--success);font-weight:600;">${aA.ok} OK</span> ·
+            <span style="color:var(--warning);font-weight:600;">${aA.low} Low</span> ·
+            <span style="color:var(--danger);font-weight:600;">${aA.zero} Out</span>
+          </div>
+        </div>
+        <div style="text-align:center;">
+          <h3 style="color:${FACILITY_COLORS[1]};">${escapeHTML(b)}</h3>
+          <div style="font-size:32px;font-weight:700;color:${FACILITY_COLORS[1]};">${aB.total.toLocaleString()}</div>
+          <div style="font-size:12px;color:var(--muted);">total units</div>
+          <div style="margin-top:8px;font-size:13px;">
+            <span style="color:var(--success);font-weight:600;">${aB.ok} OK</span> ·
+            <span style="color:var(--warning);font-weight:600;">${aB.low} Low</span> ·
+            <span style="color:var(--danger);font-weight:600;">${aB.zero} Out</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📦 By Category</h2>
+      ${hBarChart([
+        { label: a + ' — Essential', value: aA.byCat.Essential, color: CAT_COLORS.Essential },
+        { label: b + ' — Essential', value: aB.byCat.Essential, color: CAT_COLORS.Essential },
+        { label: a + ' — Donation', value: aA.byCat.Donation, color: CAT_COLORS.Donation },
+        { label: b + ' — Donation', value: aB.byCat.Donation, color: CAT_COLORS.Donation },
+        { label: a + ' — NCD', value: aA.byCat.NCD, color: CAT_COLORS.NCD },
+        { label: b + ' — NCD', value: aB.byCat.NCD, color: CAT_COLORS.NCD },
+      ])}
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>↗️ Where ${escapeHTML(a)} is Higher</h2>
+        ${(() => {
+          const items = drugCompare.filter(d => d.diff > 0).sort((x,y) => y.diff - x.diff).slice(0, 10);
+          if (items.length === 0) return '<div class="empty">None</div>';
+          return miniBars(items.map(d => ({
+            label: d.drug, value: d.diff, color: 'var(--success)'
+          })));
+        })()}
+      </div>
+      <div class="card">
+        <h2>↗️ Where ${escapeHTML(b)} is Higher</h2>
+        ${(() => {
+          const items = drugCompare.filter(d => d.diff < 0).sort((x,y) => x.diff - y.diff).slice(0, 10);
+          if (items.length === 0) return '<div class="empty">None</div>';
+          return miniBars(items.map(d => ({
+            label: d.drug, value: Math.abs(d.diff), color: 'var(--accent)'
+          })));
+        })()}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔍 Full Drug-by-Drug Table</h2>
+      <div class="compare-grid header">
+        <div>Drug</div><div class="num">${escapeHTML(a)}</div><div class="num">${escapeHTML(b)}</div><div class="num">Diff</div>
+      </div>
+      <div style="max-height: 500px; overflow-y: auto;">
+      ${drugCompare.map(d => {
+        const diffCls = d.diff > 0 ? 'diff-pos' : (d.diff < 0 ? 'diff-neg' : 'diff-zero');
+        return `<div class="compare-grid">
+          <div>${escapeHTML(d.drug)} <span style="font-size:10px;color:var(--muted);">(${escapeHTML(d.cat)})</span></div>
+          <div class="num">${d.a}</div>
+          <div class="num">${d.b}</div>
+          <div class="num ${diffCls}">${d.diff > 0 ? '+' : ''}${d.diff}</div>
+        </div>`;
+      }).join('')}
+      </div>
+    </div>
+  `;
+  $('compareContent').innerHTML = html;
+}
+
+// =========================================================================
+// RANKINGS TAB
+// =========================================================================
+
+function renderRankings() {
+  if (!state.stockRows.length) return;
+  const a = analyzeStock();
+
+  // Facilities by total stock
+  const facilityRanked = Object.keys(a.byFacility).map(p => ({
+    label: p, value: a.byFacility[p]
+  })).sort((x, y) => y.value - x.value);
+  $('rankFacilityStock').innerHTML = hBarChart(facilityRanked);
+
+  // Facilities by low+zero count
+  const facilityLowRanked = Object.keys(a.byFacility).map(p => ({
+    label: p,
+    value: (a.byFacilityLow[p] || 0) + (a.byFacilityZero[p] || 0)
+  })).sort((x, y) => y.value - x.value);
+  $('rankFacilityLow').innerHTML = hBarChart(facilityLowRanked.map(x => ({ ...x, color: 'var(--warning)' })));
+
+  // Drugs by total stock (top 15)
+  const drugStockRanked = [...a.perDrug].sort((x, y) => y.total - x.total).slice(0, 15);
+  $('rankDrugStock').innerHTML = miniBars(drugStockRanked.map(d => ({
+    label: d.name + ' (' + d.cat + ')',
+    value: d.total,
+    color: CAT_COLORS[d.cat] || 'var(--primary)'
+  })));
+
+  // Drugs by stockout count
+  const drugZeroRanked = Object.keys(a.perDrugZeroCount)
+    .filter(d => a.perDrugZeroCount[d] > 0)
+    .map(d => {
+      const dd = state.drugs.find(x => x.name === d);
+      return { label: d + (dd ? ' (' + dd.cat + ')' : ''), value: a.perDrugZeroCount[d] };
+    })
+    .sort((x, y) => y.value - x.value).slice(0, 15);
+  if (drugZeroRanked.length === 0) {
+    $('rankDrugZero').innerHTML = '<div class="empty">✓ No stockouts</div>';
+  } else {
+    $('rankDrugZero').innerHTML = miniBars(drugZeroRanked.map(d => ({ ...d, color: 'var(--danger)' })));
+  }
+}
+
+// =========================================================================
+// SETTINGS / SHARED
+// =========================================================================
+
+async function refreshAll() {
+  $('refreshIcon').textContent = '⏳';
+  try {
+    const s = await api('getstock');
+    state.stockHeaders = s.headers;
+    state.stockRows = s.rows;
+    setOnlineStatus(true);
+    renderOverall();
+    renderFacility();
+    $('aboutLoaded').textContent = new Date().toLocaleTimeString();
+  } catch (e) {
+    setOnlineStatus(false);
+    toast('Refresh failed: ' + e.message, 'error');
+  }
+  $('refreshIcon').textContent = '🔄';
+}
+
+function saveApiUrl() {
+  state.apiUrl = $('settingUrl').value.trim();
+  Storage.set(Storage.KEYS.API_URL, state.apiUrl);
+  toast('URL saved — reloading data', 'success');
+  bootstrap();
+}
+
+async function testConnection() {
+  try {
+    const r = await api('ping');
+    toast('Connection OK — backend ' + (r.version || '?'), 'success');
+    setOnlineStatus(true);
+  } catch (e) {
+    toast('Connection failed: ' + e.message, 'error');
+    setOnlineStatus(false);
+  }
+}
+
+function saveRefreshInterval() {
+  state.refreshMinutes = parseInt($('refreshInterval').value, 10);
+  Storage.set(Storage.KEYS.REFRESH_MIN, state.refreshMinutes);
+  setupAutoRefresh();
+  toast('Auto-refresh set', 'success');
+}
+
+function setupAutoRefresh() {
+  if (state.refreshTimer) clearInterval(state.refreshTimer);
+  if (state.refreshMinutes > 0) {
+    state.refreshTimer = setInterval(refreshAll, state.refreshMinutes * 60 * 1000);
+  }
+}
+
+let _waitingSW = null;
+async function checkForUpdate(showResult) {
+  if (!('serviceWorker' in navigator)) {
+    if (showResult) toast('Offline mode not supported on this browser', 'error');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      if (showResult) toast('App not yet installed for offline', 'success');
+      return;
+    }
+    await reg.update();
+    if (_waitingSW) {
+      $('updateBanner').classList.add('show');
+      if (showResult) toast('Update ready — tap Update now', 'success');
+    } else if (showResult) {
+      toast('You have the latest version (v' + APP_VERSION + ')', 'success');
+    }
+  } catch (e) {
+    if (showResult) toast('Update check failed', 'error');
+  }
+}
+
+function applyUpdate() {
+  if (_waitingSW) _waitingSW.postMessage('SKIP_WAITING');
+  setTimeout(() => window.location.reload(), 150);
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      _waitingSW = reg.waiting;
+      $('updateBanner').classList.add('show');
+    }
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          _waitingSW = nw;
+          $('updateBanner').classList.add('show');
+        }
+      });
+    });
+    // Periodic update check
+    setInterval(() => reg.update().catch(()=>{}), 5 * 60 * 1000);
+  }).catch(err => console.warn('SW register failed:', err));
+
+  // Reload when the new SW takes control
+  let _reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_reloading) return;
+    _reloading = true;
+    window.location.reload();
+  });
+}
+
+async function bootstrap() {
+  try {
+    const r = await api('bootstrap');
+    state.drugs = r.drugs || [];
+    state.points = r.points || [];
+    $('aboutBackend').textContent = r.version || '?';
+    setOnlineStatus(true);
+    // Populate dropdowns
+    const opts = '<option value="">Select...</option>' +
+      state.points.map(p => `<option value="${escapeHTML(p.name)}">${escapeHTML(p.name)}</option>`).join('');
+    $('facilityPick').innerHTML = opts;
+    $('cmpA').innerHTML = opts;
+    $('cmpB').innerHTML = opts;
+    if (state.points.length >= 1) $('cmpA').value = state.points[0].name;
+    if (state.points.length >= 2) $('cmpB').value = state.points[1].name;
+    if (state.points.length >= 1) $('facilityPick').value = state.points[0].name;
+    await refreshAll();
+    renderRankings();
+  } catch (e) {
+    setOnlineStatus(false);
+    toast('Cannot reach backend — check Settings', 'error');
+  }
+}
+
+async function init() {
+  $('versionBadge').textContent = 'v' + APP_VERSION;
+  $('aboutVersion').textContent = APP_VERSION;
+  state.apiUrl = Storage.get(Storage.KEYS.API_URL) || DEFAULT_API_URL;
+  const rm = Storage.get(Storage.KEYS.REFRESH_MIN);
+  state.refreshMinutes = rm == null ? 5 : rm;
+  $('settingUrl').value = state.apiUrl;
+  $('refreshInterval').value = state.refreshMinutes;
+
+  await bootstrap();
+  setupAutoRefresh();
+  registerServiceWorker();
+  window.addEventListener('online', () => { setOnlineStatus(true); refreshAll(); });
+  window.addEventListener('offline', () => setOnlineStatus(false));
+}
+
+init();
+</script>
+</body>
+</html>
