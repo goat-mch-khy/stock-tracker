@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F4E78">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<title>Stock Tracker — Dashboard</title>
+<style>
+  :root {
+    --primary: #1F4E78; --primary-dark: #163958; --accent: #2E86AB;
+    --success: #4CAF50; --warning: #FFC107; --danger: #F44336;
+    --bg: #F5F7FA; --card: #FFFFFF; --text: #1A202C; --muted: #718096;
+    --border: #E2E8F0; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08); --radius: 12px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Tahoma', Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.5; min-height: 100vh;
+  }
+  .header {
+    background: var(--primary); color: white; padding: 14px 16px;
+    position: sticky; top: 0; z-index: 10; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .header .badge { font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 8px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .header-actions button {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    font-family: inherit; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .header-actions button:hover { background: rgba(255,255,255,0.25); }
+  .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--success); }
+  .status-dot.offline { background: var(--danger); }
+  .update-banner {
+    background: var(--accent); color: white; padding: 10px 16px;
+    display: none; justify-content: space-between; align-items: center;
+  }
+  .update-banner.show { display: flex; }
+  .update-banner button {
+    background: white; color: var(--accent); border: none; padding: 6px 12px;
+    border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .tabs {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    display: flex; position: sticky; top: 50px; z-index: 9; overflow-x: auto;
+  }
+  .tabs button {
+    flex: 1; min-width: max-content; padding: 14px 12px; border: none; background: transparent;
+    font-size: 14px; color: var(--muted); cursor: pointer;
+    border-bottom: 3px solid transparent; font-family: inherit;
+  }
+  .tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px 0; font-size: 16px; font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .stat {
+    background: var(--card); padding: 14px; border-radius: var(--radius-sm);
+    box-shadow: var(--shadow); text-align: center;
+  }
+  .stat .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 28px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+  .stat.danger .value { color: var(--danger); }
+  .stat.warning .value { color: #F57F17; }
+  .stat.success .value { color: var(--success); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 14px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+    gap: 6px;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 14px; font-family: inherit;
+    background: white;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--primary); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 120px; }
+  /* Stock table */
+  .stock-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.stock {
+    border-collapse: collapse; min-width: 100%; font-size: 13px;
+  }
+  table.stock th, table.stock td {
+    border: 1px solid var(--border); padding: 6px 8px; text-align: center;
+    white-space: nowrap;
+  }
+  table.stock th {
+    background: var(--primary); color: white; font-weight: 600;
+    position: sticky; top: 0; z-index: 2;
+  }
+  table.stock th.drug, table.stock td.drug {
+    text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1;
+    min-width: 200px; max-width: 280px;
+    box-shadow: 1px 0 0 var(--border);
+  }
+  table.stock th.drug { background: var(--primary); z-index: 3; }
+  table.stock td.cat { font-size: 11px; font-weight: 600; }
+  td.q-zero { background: #FFCDD2; color: #C62828; font-weight: 700; }
+  td.q-low { background: #FFE082; color: #5D4037; font-weight: 600; }
+  td.q-ok { color: var(--text); }
+  td.q-neg { background: #B71C1C; color: white; font-weight: 700; }
+  td.cat-essential { color: var(--success); }
+  td.cat-donation { color: #FF9800; }
+  td.cat-ncd { color: var(--danger); }
+  /* Low stock list */
+  .low-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .low-item:last-child { border-bottom: none; }
+  .low-item .info { flex: 1; min-width: 0; }
+  .low-item .drug-name { font-weight: 600; font-size: 14px; }
+  .low-item .point-name { font-size: 12px; color: var(--muted); }
+  .low-item .qty-badge {
+    padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 14px;
+    flex-shrink: 0;
+  }
+  .qty-badge.zero { background: #FFCDD2; color: #C62828; }
+  .qty-badge.low { background: #FFE082; color: #5D4037; }
+  .qty-badge.neg { background: #B71C1C; color: white; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--text); color: white; padding: 12px 20px;
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+    z-index: 100; transition: transform 0.3s; font-size: 14px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .empty { text-align: center; padding: 32px 16px; color: var(--muted); font-size: 14px; }
+  .summary-row {
+    display: grid; grid-template-columns: 1fr 60px 70px 70px 80px;
+    align-items: center; padding: 10px 12px;
+    border-bottom: 1px solid var(--border); font-size: 13px; gap: 8px;
+  }
+  .summary-row.header { font-weight: 700; background: var(--bg); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .summary-row .drug-name { font-weight: 500; font-size: 14px; }
+  .summary-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .summary-row .closing { font-weight: 700; }
+  .last-updated { font-size: 12px; color: var(--muted); text-align: right; margin-top: 8px; }
+  @media (max-width: 480px) {
+    .stat .value { font-size: 22px; }
+    .summary-row { grid-template-columns: 1fr 50px 60px 60px 70px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Stock Dashboard <span class="badge" id="versionBadge">v1.0.0</span></h1>
+  <div class="header-actions">
+    <button onclick="refreshAll()" title="Refresh"><span id="refreshIcon">🔄</span></button>
+    <span class="status-dot" id="statusDot"></span>
+  </div>
+</div>
+
+<div class="update-banner" id="updateBanner">
+  <span>🔄 A new version is available</span>
+  <button onclick="applyUpdate()">Update now</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+  <button class="tab-btn" data-tab="stock" onclick="switchTab('stock')">Stock Matrix</button>
+  <button class="tab-btn" data-tab="summary" onclick="switchTab('summary')">Monthly</button>
+  <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+</div>
+
+<div class="container">
+
+  <div class="screen active" id="screen-overview">
+    <div class="stats" id="overviewStats"></div>
+
+    <div class="card">
+      <h2>⚠️ Low Stock Alerts <span style="font-size:12px;color:var(--muted);font-weight:normal;">(at or below threshold)</span></h2>
+      <div class="row" style="margin-bottom: 12px;">
+        <div class="field" style="min-width:0;">
+          <label>Threshold</label>
+          <input type="number" id="lowThreshold" value="10" min="0" step="1" onchange="loadLowStock()">
+        </div>
+        <div style="flex: 2;"></div>
+      </div>
+      <div id="lowStockList"><div class="empty">Loading...</div></div>
+      <div class="last-updated" id="lowUpdated"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-stock">
+    <div class="card">
+      <h2>Current Stock — Drugs × Medical Points</h2>
+      <div class="stock-table-wrap">
+        <div id="stockTable"><div class="empty">Loading...</div></div>
+      </div>
+      <div class="last-updated" id="stockUpdated"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-summary">
+    <div class="card">
+      <h2>Monthly Summary</h2>
+      <div class="row" style="margin-bottom: 12px;">
+        <div class="field" style="min-width:0;">
+          <label>Year</label>
+          <input type="number" id="sumYear" value="2026" min="2026" max="2030">
+        </div>
+        <div class="field" style="min-width:0;">
+          <label>Month</label>
+          <select id="sumMonth"></select>
+        </div>
+        <div class="field" style="min-width:160px;flex:2;">
+          <label>Medical Point</label>
+          <select id="sumPoint"></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="loadSummary()" style="width:100%;">Load Summary</button>
+      <div id="summaryResults" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-settings">
+    <div class="card">
+      <h2>🔌 Connection</h2>
+      <div class="field">
+        <label>API URL (the Apps Script Web App URL)</label>
+        <input type="text" id="settingUrl">
+      </div>
+      <div class="row">
+        <button class="btn btn-secondary" onclick="testConnection()">Test</button>
+        <button class="btn btn-primary" onclick="saveApiUrl()">Save URL</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔄 Auto-Refresh</h2>
+      <div class="field">
+        <label>Auto-refresh interval (minutes)</label>
+        <select id="refreshInterval">
+          <option value="0">Off</option>
+          <option value="1">Every 1 minute</option>
+          <option value="5" selected>Every 5 minutes</option>
+          <option value="15">Every 15 minutes</option>
+          <option value="30">Every 30 minutes</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="saveRefreshInterval()">Save</button>
+    </div>
+
+    <div class="card">
+      <h2>🔄 App Update</h2>
+      <button class="btn btn-secondary" onclick="checkForUpdate(true)">Check for app update</button>
+    </div>
+
+    <div class="card">
+      <h2>ℹ️ About</h2>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">App version: <strong id="aboutVersion"></strong></p>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">Backend version: <strong id="aboutBackend">—</strong></p>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">Drugs: <strong id="aboutDrugs">—</strong></p>
+      <p style="color:var(--muted);font-size:13px;margin:4px 0;">Medical points: <strong id="aboutPoints">—</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const APP_VERSION = '1.0.1';
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbylvpiNmufRRLNDNrQmRUHkYJBhYr9g4IAhrKSOlY0xCfXH1VC3xoefUZF1PMZZARFA/exec';
+
+const state = {
+  apiUrl: '', drugs: [], points: [],
+  stock: null, lowStock: [], summary: null,
+  refreshTimer: null, refreshMinutes: 5,
+};
+
+const Storage = {
+  KEYS: {
+    API_URL: 'sd_apiUrl',
+    REFRESH_MIN: 'sd_refreshMin',
+    DRUGS: 'sd_drugs', POINTS: 'sd_points',
+  },
+  get(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch(_) { return f; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(_) { return false; } },
+};
+
+async function api(action, params, body) {
+  const url = new URL(state.apiUrl);
+  url.searchParams.set('action', action);
+  if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const opts = body
+    ? { method: 'POST', body: JSON.stringify(body), redirect: 'follow' }
+    : { method: 'GET', redirect: 'follow' };
+  const res = await fetch(url.toString(), opts);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+function $(id) { return document.getElementById(id); }
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (kind ? ' ' + kind : '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + name));
+  if (name === 'stock') loadStock();
+  if (name === 'overview') { loadStock().then(() => loadLowStock()); }
+}
+
+function setOnlineStatus(online) {
+  $('statusDot').className = online ? 'status-dot' : 'status-dot offline';
+}
+
+function timeAgo() {
+  const d = new Date();
+  return d.toLocaleTimeString();
+}
+
+// --- DATA LOADERS ---
+
+async function loadStock() {
+  try {
+    const r = await api('getstock');
+    state.stock = r;
+    setOnlineStatus(true);
+    renderStock();
+    renderOverviewStats();
+  } catch (e) {
+    setOnlineStatus(false);
+    $('stockTable').innerHTML = '<div class="empty">Failed: ' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+function classifyQty(q) {
+  const n = Number(q);
+  if (isNaN(n)) return 'q-ok';
+  if (n < 0) return 'q-neg';
+  if (n === 0) return 'q-zero';
+  if (n < 10) return 'q-low';
+  return 'q-ok';
+}
+
+function renderStock() {
+  if (!state.stock) return;
+  const { headers, rows } = state.stock;
+  // headers: ['Drug', 'Category', point1, point2, ...]
+  let html = '<table class="stock"><thead><tr>';
+  html += '<th class="drug">' + escapeHTML(headers[0] || 'Drug') + '</th>';
+  html += '<th>' + escapeHTML(headers[1] || 'Cat') + '</th>';
+  for (let i = 2; i < headers.length; i++) html += '<th>' + escapeHTML(headers[i] || '') + '</th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    if (!row[0]) return;
+    const cat = row[1] || '';
+    const catCls = cat === 'Essential' ? 'cat-essential' : (cat === 'Donation' ? 'cat-donation' : (cat === 'NCD' ? 'cat-ncd' : ''));
+    html += '<tr>';
+    html += '<td class="drug">' + escapeHTML(row[0]) + '</td>';
+    html += '<td class="cat ' + catCls + '">' + escapeHTML(cat) + '</td>';
+    for (let i = 2; i < row.length; i++) {
+      const q = row[i];
+      html += '<td class="' + classifyQty(q) + '">' + (q === '' || q == null ? '' : q) + '</td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  $('stockTable').innerHTML = html;
+  $('stockUpdated').textContent = 'Updated: ' + timeAgo();
+}
+
+function renderOverviewStats() {
+  if (!state.stock) return;
+  const { headers, rows } = state.stock;
+  let totalCells = 0, zero = 0, low = 0, neg = 0;
+  let totalQty = 0;
+  rows.forEach(row => {
+    if (!row[0]) return;
+    for (let i = 2; i < row.length; i++) {
+      const n = Number(row[i]);
+      if (isNaN(n)) continue;
+      totalCells++; totalQty += n;
+      if (n < 0) neg++;
+      else if (n === 0) zero++;
+      else if (n < 10) low++;
+    }
+  });
+  $('overviewStats').innerHTML = `
+    <div class="stat"><div class="label">Drugs Tracked</div><div class="value">${state.drugs.length}</div></div>
+    <div class="stat"><div class="label">Medical Points</div><div class="value">${state.points.length}</div></div>
+    <div class="stat danger"><div class="label">Out of Stock</div><div class="value">${zero}</div></div>
+    <div class="stat warning"><div class="label">Low Stock</div><div class="value">${low}</div></div>
+    <div class="stat success"><div class="label">Total Units</div><div class="value">${totalQty.toLocaleString()}</div></div>
+  `;
+}
+
+async function loadLowStock() {
+  const threshold = parseInt($('lowThreshold').value, 10) || 10;
+  $('lowStockList').innerHTML = '<div class="empty">Loading...</div>';
+  try {
+    const r = await api('lowstock', { threshold });
+    state.lowStock = r.items || [];
+    if (state.lowStock.length === 0) {
+      $('lowStockList').innerHTML = '<div class="empty">✓ No drugs at or below ' + threshold + '</div>';
+    } else {
+      $('lowStockList').innerHTML = state.lowStock.map(it => {
+        const q = Number(it.qty);
+        const cls = q < 0 ? 'neg' : (q === 0 ? 'zero' : 'low');
+        return `
+          <div class="low-item">
+            <div class="info">
+              <div class="drug-name">${escapeHTML(it.drug)} <span style="font-size:11px;color:var(--muted);">(${escapeHTML(it.category)})</span></div>
+              <div class="point-name">${escapeHTML(it.point)}</div>
+            </div>
+            <div class="qty-badge ${cls}">${q}</div>
+          </div>`;
+      }).join('');
+    }
+    $('lowUpdated').textContent = 'Updated: ' + timeAgo();
+  } catch (e) {
+    $('lowStockList').innerHTML = '<div class="empty">Failed: ' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+async function loadSummary() {
+  const year = parseInt($('sumYear').value, 10);
+  const month = parseInt($('sumMonth').value, 10);
+  const point = $('sumPoint').value;
+  if (!year || !month || !point) { toast('Please pick year, month, and point', 'error'); return; }
+  $('summaryResults').innerHTML = '<div class="empty">Loading...</div>';
+  try {
+    const r = await api('getsummary', { year, month, point });
+    state.summary = r;
+    if (!r.summary || r.summary.length === 0) {
+      $('summaryResults').innerHTML = '<div class="empty">No data</div>';
+      return;
+    }
+    let html = '<div class="summary-row header"><div>Drug</div><div class="num">Open</div><div class="num">+Added</div><div class="num">−Issued</div><div class="num">Close</div></div>';
+    r.summary.forEach(s => {
+      const closeCls = s.closing < 0 ? 'q-neg' : (s.closing === 0 ? 'q-zero' : (s.closing < 10 ? 'q-low' : ''));
+      html += `<div class="summary-row">
+        <div class="drug-name">${escapeHTML(s.drug)} <span style="font-size:10px;color:var(--muted);">(${escapeHTML(s.category)})</span></div>
+        <div class="num">${s.opening}</div>
+        <div class="num" style="color:var(--success);">${s.added > 0 ? '+' + s.added : '0'}</div>
+        <div class="num" style="color:var(--danger);">${s.issued > 0 ? '−' + s.issued : '0'}</div>
+        <div class="num closing ${closeCls}" style="padding:2px 6px;border-radius:4px;">${s.closing}</div>
+      </div>`;
+    });
+    $('summaryResults').innerHTML = html;
+  } catch (e) {
+    $('summaryResults').innerHTML = '<div class="empty">Failed: ' + escapeHTML(e.message) + '</div>';
+  }
+}
+
+async function refreshAll() {
+  $('refreshIcon').textContent = '⏳';
+  await loadStock();
+  await loadLowStock();
+  $('refreshIcon').textContent = '🔄';
+  toast('Refreshed', 'success');
+}
+
+// --- SETTINGS ---
+
+function saveApiUrl() {
+  state.apiUrl = $('settingUrl').value.trim();
+  Storage.set(Storage.KEYS.API_URL, state.apiUrl);
+  toast('URL saved — reloading data', 'success');
+  bootstrap();
+}
+
+async function testConnection() {
+  try {
+    const r = await api('ping');
+    toast('Connection OK — backend ' + (r.version || '?'), 'success');
+    setOnlineStatus(true);
+  } catch (e) {
+    toast('Connection failed: ' + e.message, 'error');
+    setOnlineStatus(false);
+  }
+}
+
+function saveRefreshInterval() {
+  state.refreshMinutes = parseInt($('refreshInterval').value, 10);
+  Storage.set(Storage.KEYS.REFRESH_MIN, state.refreshMinutes);
+  setupAutoRefresh();
+  toast('Auto-refresh set', 'success');
+}
+
+function setupAutoRefresh() {
+  if (state.refreshTimer) clearInterval(state.refreshTimer);
+  if (state.refreshMinutes > 0) {
+    state.refreshTimer = setInterval(refreshAll, state.refreshMinutes * 60 * 1000);
+  }
+}
+
+// --- AUTO-UPDATE ---
+
+let _waitingSW = null;
+async function checkForUpdate(showResult) {
+  if (!('serviceWorker' in navigator)) {
+    if (showResult) toast('Offline mode not supported on this browser', 'error');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      if (showResult) toast('App not yet installed for offline', 'success');
+      return;
+    }
+    await reg.update();
+    if (_waitingSW) {
+      $('updateBanner').classList.add('show');
+      if (showResult) toast('Update ready — tap Update now', 'success');
+    } else if (showResult) {
+      toast('You have the latest version (v' + APP_VERSION + ')', 'success');
+    }
+  } catch (e) {
+    if (showResult) toast('Update check failed', 'error');
+  }
+}
+
+function applyUpdate() {
+  if (_waitingSW) _waitingSW.postMessage('SKIP_WAITING');
+  setTimeout(() => window.location.reload(), 150);
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      _waitingSW = reg.waiting;
+      $('updateBanner').classList.add('show');
+    }
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          _waitingSW = nw;
+          $('updateBanner').classList.add('show');
+        }
+      });
+    });
+    // Periodic update check
+    setInterval(() => reg.update().catch(()=>{}), 5 * 60 * 1000);
+  }).catch(err => console.warn('SW register failed:', err));
+
+  // Reload when the new SW takes control
+  let _reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_reloading) return;
+    _reloading = true;
+    window.location.reload();
+  });
+}
+
+// --- INIT ---
+
+async function bootstrap() {
+  try {
+    const r = await api('bootstrap');
+    state.drugs = r.drugs || [];
+    state.points = r.points || [];
+    Storage.set(Storage.KEYS.DRUGS, state.drugs);
+    Storage.set(Storage.KEYS.POINTS, state.points);
+    $('aboutBackend').textContent = r.version || '?';
+    $('aboutDrugs').textContent = state.drugs.length;
+    $('aboutPoints').textContent = state.points.length;
+    setOnlineStatus(true);
+    // Populate point dropdown
+    $('sumPoint').innerHTML = '<option value="">Select...</option>' +
+      state.points.map(p => `<option value="${escapeHTML(p.name)}">${escapeHTML(p.name)}</option>`).join('');
+    // Load initial views
+    await loadStock();
+    await loadLowStock();
+  } catch (e) {
+    setOnlineStatus(false);
+    toast('Cannot reach backend — check Settings', 'error');
+  }
+}
+
+async function init() {
+  $('versionBadge').textContent = 'v' + APP_VERSION;
+  $('aboutVersion').textContent = APP_VERSION;
+  state.apiUrl = Storage.get(Storage.KEYS.API_URL) || DEFAULT_API_URL;
+  state.refreshMinutes = Storage.get(Storage.KEYS.REFRESH_MIN);
+  if (state.refreshMinutes == null) state.refreshMinutes = 5;
+  state.drugs = Storage.get(Storage.KEYS.DRUGS) || [];
+  state.points = Storage.get(Storage.KEYS.POINTS) || [];
+  $('settingUrl').value = state.apiUrl;
+  $('refreshInterval').value = state.refreshMinutes;
+  // Populate month dropdown
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  $('sumMonth').innerHTML = months.map((m, i) => `<option value="${i+1}"${i+1 === new Date().getMonth()+1 ? ' selected' : ''}>${m}</option>`).join('');
+  $('sumYear').value = new Date().getFullYear();
+  await bootstrap();
+  setupAutoRefresh();
+  registerServiceWorker();
+  window.addEventListener('online', () => { setOnlineStatus(true); refreshAll(); });
+  window.addEventListener('offline', () => setOnlineStatus(false));
+}
+
+init();
+</script>
+</body>
+</html>
